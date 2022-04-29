@@ -1,7 +1,8 @@
 const {
   etherMantissa,
   minerStart,
-  minerStop
+  minerStop,
+  UInt256Max
 } = require('./Utils/Ethereum');
 
 const {
@@ -22,7 +23,7 @@ describe('Spinarama', () => {
     it('should succeed', async () => {
       const cToken = await makeCToken({supportMarket: true});
       await send(cToken.underlying, 'harnessSetBalance', [from, 100], {from});
-      await send(cToken.underlying, 'approve', [cToken._address, -1], {from});
+      await send(cToken.underlying, 'approve', [cToken._address, UInt256Max()], {from});
       await minerStop();
       const p1 = send(cToken, 'mint', [1], {from});
       const p2 = send(cToken, 'mint', [2], {from});
@@ -39,9 +40,14 @@ describe('Spinarama', () => {
       await minerStop();
       const p1 = send(cToken, 'mint', [11], {from});
       const p2 = send(cToken, 'mint', [10], {from});
-      await minerStart();
-      expect(await p1).toHaveTokenFailure('TOKEN_INSUFFICIENT_ALLOWANCE', 'MINT_TRANSFER_IN_NOT_POSSIBLE');
-      expect(await p2).toSucceed();
+      await expect(minerStart()).rejects.toRevert("revert Insufficient allowance");
+      try {
+        await p1;
+      } catch (err) {
+        // hack: miner start reverts with correct message, but tx gives us a weird tx obj. ganache bug?
+        expect(err.toString()).toContain("reverted by the EVM");
+      }
+      await expect(p2).resolves.toSucceed();
       expect(await balanceOf(cToken, from)).toEqualNumber(10);
     });
   });

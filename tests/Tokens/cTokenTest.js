@@ -1,6 +1,7 @@
 const {
   etherUnsigned,
-  etherMantissa
+  etherMantissa,
+  UInt256Max
 } = require('../Utils/Ethereum');
 
 const {
@@ -113,6 +114,8 @@ describe('CToken', function () {
 
     it("reverts if interest accrual fails", async () => {
       await send(cToken.interestRateModel, 'setFailBorrowRate', [true]);
+      // make sure we accrue interest
+      await send(cToken, 'harnessFastForward', [1]);
       await expect(send(cToken, 'borrowBalanceCurrent', [borrower])).rejects.toRevert("revert INTEREST_RATE_MODEL_ERROR");
     });
 
@@ -158,7 +161,7 @@ describe('CToken', function () {
     });
 
     it("reverts on overflow of principal", async () => {
-      await pretendBorrow(cToken, borrower, 1, 3, -1);
+      await pretendBorrow(cToken, borrower, 1, 3, UInt256Max());
       await expect(call(cToken, 'borrowBalanceStored', [borrower])).rejects.toRevert("revert borrowBalanceStored: borrowBalanceStoredInternal failed");
     });
 

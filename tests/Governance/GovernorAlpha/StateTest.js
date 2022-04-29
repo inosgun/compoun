@@ -1,6 +1,6 @@
 const {
   advanceBlocks,
-  bigNumberify,
+  etherUnsigned,
   both,
   encodeParameters,
   etherMantissa,
@@ -31,7 +31,7 @@ describe('GovernorAlpha#state/1', () => {
     await freezeTime(100);
     [root, acct, ...accounts] = accounts;
     comp = await deploy('Comp', [root]);
-    delay = bigNumberify(2 * 24 * 60 * 60).mul(2)
+    delay = etherUnsigned(2 * 24 * 60 * 60).multipliedBy(2)
     timelock = await deploy('TimelockHarness', [root, delay]);
     gov = await deploy('GovernorAlpha', [timelock._address, comp._address, root]);
     await send(timelock, "harnessSetAdmin", [gov._address])
@@ -119,13 +119,13 @@ describe('GovernorAlpha#state/1', () => {
 
     let gracePeriod = await call(timelock, 'GRACE_PERIOD')
     let p = await call(gov, "proposals", [newProposalId]);
-    let eta = bigNumberify(p.eta)
+    let eta = etherUnsigned(p.eta)
 
-    await freezeTime(eta.add(gracePeriod).sub(1).toNumber())
+    await freezeTime(eta.plus(gracePeriod).minus(1).toNumber())
 
     expect(await call(gov, 'state', [newProposalId])).toEqual(states["Queued"])
 
-    await freezeTime(eta.add(gracePeriod).toNumber())
+    await freezeTime(eta.plus(gracePeriod).toNumber())
 
     expect(await call(gov, 'state', [newProposalId])).toEqual(states["Expired"])
   })
@@ -142,9 +142,9 @@ describe('GovernorAlpha#state/1', () => {
 
     let gracePeriod = await call(timelock, 'GRACE_PERIOD')
     let p = await call(gov, "proposals", [newProposalId]);
-    let eta = bigNumberify(p.eta)
+    let eta = etherUnsigned(p.eta)
 
-    await freezeTime(eta.add(gracePeriod).sub(1).toNumber())
+    await freezeTime(eta.plus(gracePeriod).minus(1).toNumber())
 
     expect(await call(gov, 'state', [newProposalId])).toEqual(states["Queued"])
     await send(gov, 'execute', [newProposalId], { from: acct })
@@ -152,7 +152,7 @@ describe('GovernorAlpha#state/1', () => {
     expect(await call(gov, 'state', [newProposalId])).toEqual(states["Executed"])
 
     // still executed even though would be expired
-    await freezeTime(eta.add(gracePeriod).toNumber())
+    await freezeTime(eta.plus(gracePeriod).toNumber())
 
     expect(await call(gov, 'state', [newProposalId])).toEqual(states["Executed"])
   })

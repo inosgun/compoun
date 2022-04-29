@@ -1,6 +1,7 @@
 const {
   etherUnsigned,
-  etherMantissa
+  etherMantissa,
+  UInt256Max
 } = require('../Utils/Ethereum');
 
 const {
@@ -19,9 +20,9 @@ const {
 
 const exchangeRate = 50e3;
 const mintAmount = etherUnsigned(10e4);
-const mintTokens = mintAmount.div(exchangeRate);
+const mintTokens = mintAmount.dividedBy(exchangeRate);
 const redeemTokens = etherUnsigned(10e3);
-const redeemAmount = redeemTokens.mul(exchangeRate);
+const redeemAmount = redeemTokens.multipliedBy(exchangeRate);
 
 async function preMint(cToken, minter, mintAmount, mintTokens, exchangeRate) {
   await preApprove(cToken, minter, mintAmount);
@@ -92,12 +93,12 @@ describe('CToken', function () {
       expect(
         await send(cToken.underlying, 'approve', [cToken._address, 1], {from: minter})
       ).toSucceed();
-      expect(await mintFresh(cToken, minter, mintAmount)).toHaveTokenFailure('TOKEN_INSUFFICIENT_ALLOWANCE', 'MINT_TRANSFER_IN_NOT_POSSIBLE');
+      await expect(mintFresh(cToken, minter, mintAmount)).rejects.toRevert('revert Insufficient allowance');
     });
 
     it("fails if insufficient balance", async() => {
       await setBalance(cToken.underlying, minter, 1);
-      expect(await mintFresh(cToken, minter, mintAmount)).toHaveTokenFailure('TOKEN_INSUFFICIENT_BALANCE', 'MINT_TRANSFER_IN_NOT_POSSIBLE');
+      await expect(mintFresh(cToken, minter, mintAmount)).rejects.toRevert('revert Insufficient balance');
     });
 
     it("proceeds if sufficient approval and balance", async () =>{
@@ -150,7 +151,7 @@ describe('CToken', function () {
 
     it("returns error from mintFresh without emitting any extra logs", async () => {
       await send(cToken.underlying, 'harnessSetBalance', [minter, 1]);
-      expect(await quickMint(cToken, minter, mintAmount, {faucet: false})).toHaveTokenFailure('TOKEN_INSUFFICIENT_BALANCE', 'MINT_TRANSFER_IN_NOT_POSSIBLE');
+      await expect(mintFresh(cToken, minter, mintAmount)).rejects.toRevert('revert Insufficient balance');
     });
 
     it("returns success from mintFresh and mints the correct number of tokens", async () => {
@@ -197,7 +198,7 @@ describe('CToken', function () {
 
       it("fails if exchange calculation fails", async () => {
         if (redeemFresh == redeemFreshTokens) {
-          expect(await send(cToken, 'harnessSetExchangeRate', [-1])).toSucceed();
+          expect(await send(cToken, 'harnessSetExchangeRate', [UInt256Max()])).toSucceed();
           expect(await redeemFresh(cToken, redeemer, redeemTokens, redeemAmount)).toHaveTokenFailure('MATH_ERROR', 'REDEEM_EXCHANGE_TOKENS_CALCULATION_FAILED');
         } else {
           expect(await send(cToken, 'harnessSetExchangeRate', [0])).toSucceed();
